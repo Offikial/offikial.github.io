@@ -1,0 +1,115 @@
+---
+title: "Prediction using Practical Machine Learning"
+author: "Offikial Developer"
+date: "April 1, 2016"
+output: html_document
+---
+
+# Synopsis
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. 
+
+These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. 
+
+One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Data
+The training data for this project are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. 
+
+If you use this document for any purpose please cite them as they have been very generous in allowing their data to be used for this project.
+
+## Submission
+
+The goal of this project is to predict the manner in which they did the exercise (for 20 different test cases), using the "classe" variable in the training set. 
+
+### Executive Summary  
+This report describes: 
+* model (and how it was built)
+* cross validation
+* the expected out of sample error
+
+# Data-Processing
+```{r}
+# install.packages("caret")
+# 
+# install.packages("rpart")
+# install.packages("rpart.plot")
+
+# install.packages("(randomForest")
+```
+
+```{r}
+library(caret)
+
+library(rpart)
+library(rpart.plot)
+
+library(randomForest)
+
+set.seed(1)
+```
+
+## Download the data
+```{r}
+urlTraining <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+urlTest <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+trainingSet <- read.csv(url(urlTraining), na.strings=c("NA","#DIV/0!",""))
+testSet <- read.csv(url(urlTest), na.strings=c("NA","#DIV/0!",""))
+```
+
+## Process the data
+
+partition the data
+```{r}
+partition <- createDataPartition(trainingSet$classe, p=0.6, list=FALSE)
+training  <- trainingSet[partition,]
+testing   <- trainingSet[-partition,]
+```
+
+clean the data
+```{r}
+nzv <- nearZeroVar(training)
+training <- training[, -nzv]
+testing  <- testing[, -nzv]
+
+na <- sapply(training, function(x) mean(is.na(x))) > 0.75
+training <- training[, na==F]
+testing  <- testing[, na==F]
+```  
+
+# Data-Analysis
+
+## Analyse the data
+Fit the data (using cross validation)
+```{r}
+fit <- train(classe ~ ., data=training, method="rf", 
+             trControl=trainControl(method="cv", number=3, verboseIter=F))
+```  
+
+Model the data
+```{r}
+model <- fit$finalModel
+```  
+the expected out of sample error: 0.02%
+
+## Prediction 
+```{r}
+prediction <- predict(fit, newdata=testing)
+```  
+
+# Results
+```{r}
+decisionTree <- rpart(classe ~ ., data=training, method="class")
+prp(decisionTree)
+```  
