@@ -62,20 +62,13 @@ set.seed(1)
 ## Download the data
 ```{r}
 urlTraining <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
-urlTest <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+urlTesting  <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
 
-trainingSet <- read.csv(url(urlTraining), na.strings=c("NA","#DIV/0!",""))
-testSet <- read.csv(url(urlTest), na.strings=c("NA","#DIV/0!",""))
+training <- read.csv(url(urlTraining), na.strings=c("NA","#DIV/0!",""))
+testing  <- read.csv(url(urlTesting), na.strings=c("NA","#DIV/0!",""))
 ```
 
 ## Process the data
-
-partition the data
-```{r}
-partition <- createDataPartition(trainingSet$classe, p=0.6, list=FALSE)
-training  <- trainingSet[partition,]
-testing   <- trainingSet[-partition,]
-```
 
 clean the data
 ```{r}
@@ -83,17 +76,37 @@ nzv <- nearZeroVar(training)
 training <- training[, -nzv]
 testing  <- testing[, -nzv]
 
-na <- sapply(training, function(x) mean(is.na(x))) > 0.75
-training <- training[, na==F]
-testing  <- testing[, na==F]
+training <- training[, colSums(is.na(testing)) == 0]
+testing  <- testing[, colSums(is.na(testing)) == 0]
+
+raw_classe <- training$classe
+
+unnecessary <- grepl("^X|timestamp|window", names(training))
+training    <- training[, !unnecessary]
+training    <- training[, sapply(training, is.numeric)]
+
+unnecessary <- grepl("^X|timestamp|window", names(testing))
+testing    <- testing[, !unnecessary]
+testing    <- testing[, sapply(testing, is.numeric)]
+
+training$classe <- raw_classe
 ```  
+
+
+partition the data
+```{r}
+partition <- createDataPartition(training$classe, p=0.8, list=FALSE)
+trainingData  <- training[partition,]
+testData      <- training[-partition,]
+```
+
 
 # Data-Analysis
 
 ## Analyse the data
 Fit the data (using cross validation)
 ```{r}
-fit <- train(classe ~ ., data=training, method="rf", 
+fit <- train(classe ~ ., data=trainingData, method="rf", 
              trControl=trainControl(method="cv", number=3, verboseIter=F))
 ```  
 
@@ -110,6 +123,8 @@ prediction <- predict(fit, newdata=testing)
 
 # Results
 ```{r}
-decisionTree <- rpart(classe ~ ., data=training, method="class")
+decisionTree <- rpart(classe ~ ., data=trainingData, method="class")
 prp(decisionTree)
 ```  
+
+
